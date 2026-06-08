@@ -1,0 +1,189 @@
+% deafMovementBootstrap.m
+%
+% This loads data structures saved out from deafMovementBootstrap
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Define location of data matrix file
+code_dir = pwd;
+
+% Define which category is being visualized
+face = false;
+hand = true;
+
+if face
+    load(fullfile(code_dir, 'distances_bootstrap_values_faceMFUS_neg_andAngles.mat'))
+elseif hand
+    load(fullfile(code_dir, 'distances_bootstrap_values_handOTS_neg_andAngles.mat'))
+end
+
+%% Histograms
+
+f=figure('color','white','position',[72 321 823 355]);
+% Compute kernel density for D
+[f, xi] = ksdensity(distances_DtoC);
+hold on
+% Filled density
+h = fill(xi, f, [199, 123, 179]./255, ...
+    'FaceAlpha', 0.35, ...
+    'EdgeColor', [0 0 0], ...
+    'LineWidth', 1.5);
+% Compute kernel density for C to C neg
+[f, xi] = ksdensity(distances_CtoC_neg);
+hold on
+% Filled density
+h = fill(xi, f, [88, 132, 209]./255, ...
+    'FaceAlpha', 0.35, ...
+    'EdgeColor', [0 0 0], ...
+    'LineWidth', 1.5);
+% Compute kernel density for H to C neg
+[f, xi] = ksdensity(distances_HtoC_neg);
+hold on
+% Filled density
+h = fill(xi, f, [224, 191, 45]./255, ...
+    'FaceAlpha', 0.35, ...
+    'EdgeColor', [0 0 0], ...
+    'LineWidth', 1.5);
+% Adjust axis visual
+box off
+set(gca, ...
+    'FontName', 'Helvetica', ...
+    'FontSize', 15, ...
+    'LineWidth', 2)
+xlabel('Distance [mm]','FontSize',15)
+ylabel('Density','FontSize',15)
+set(gca,'TickDir','out')
+
+if hand
+    mean(distances_DtoC); 
+    text(25,0.06,'Deaf','FontSize',18,'FontWeight','bold','color',[199, 123, 179]./255)
+    text(25,0.051,'Typical','FontSize',18,'FontWeight','bold','color',[88, 132, 209]./255)
+    text(25,0.042,'Hearing','FontSize',18,'FontWeight','bold','color',[224, 191, 45]./255)
+    title('OTS-hands shift','fontsize',22)
+    prctile(distances_DtoC,2.5)
+    prctile(distances_DtoC,97.5)
+    % text for deaf
+    cd = meanEffectSize(distances_DtoC,distances_CtoC_neg,'Effect','cohen');
+    pval = min(sum(distances_DtoC > mean(distances_CtoC_neg)), sum(distances_DtoC < mean(distances_CtoC_neg))) / 500 *2;
+    text(15,0.075,'Deaf shift: 8.2mm','fontsize',15)
+    text(15,0.07,['CohensD: ' sprintf('%.2f', cd.Effect)],'fontsize',15)
+    plot([mean(distances_DtoC) mean(distances_DtoC)],[0 0.078],'--','color',[179, 103, 159]./255,'linewidth',2);
+    % for hearing
+    cd = meanEffectSize(distances_HtoC_neg,distances_CtoC_neg,'Effect','cohen');
+    pvalh = min(sum(distances_HtoC_neg > mean(distances_CtoC_neg)), sum(distances_HtoC_neg < mean(distances_CtoC_neg))) / 500 *2;
+    text(-20,0.07,'Hearing shift: 5.9mm','fontsize',15)
+    text(-20,0.065,['CohensD: ' sprintf('%.2f', cd.Effect)],'fontsize',15)
+    plot([mean(distances_HtoC_neg) mean(distances_HtoC_neg)],[0 0.07],'--','color',[204, 171, 25]./255,'linewidth',2);
+elseif face
+    set(gca,'xlim',[-10 20])
+    mean(distances_DtoC)
+    pval = min(sum(distances_DtoC > mean(distances_CtoC_neg)), sum(distances_DtoC < mean(distances_CtoC_neg))) / 500 *2;
+    text(15,0.33,'Deaf','FontSize',18,'FontWeight','bold','color',[199, 123, 179]./255)
+    text(15,0.28,'Typical','FontSize',18,'FontWeight','bold','color',[88, 132, 209]./255)
+    text(15,0.23,'Hearing','FontSize',18,'FontWeight','bold','color',[224, 191, 45]./255)
+    title('mFus-faces shift','fontsize',22)
+    % Text for deaf
+    cd = meanEffectSize(distances_DtoC,distances_CtoC_neg,'Effect','cohen');
+    text(6.5,0.19,'Deaf shift: 5.6mm','fontsize',15)
+    text(6.5,0.16,['CohensD: ' sprintf('%.2f', cd.Effect)],'fontsize',15)
+    plot([mean(distances_DtoC) mean(distances_DtoC)],[0 0.17],'--','color',[179, 103, 159]./255,'linewidth',2)
+    % For hearing
+    pvalh = min(sum(distances_HtoC_neg > mean(distances_CtoC_neg)), sum(distances_HtoC_neg < mean(distances_CtoC_neg))) / 500 *2;
+    prctile(distances_HtoC_neg,2.5)
+    prctile(distances_HtoC_neg,97.5)
+    cd = meanEffectSize(distances_HtoC_neg,distances_CtoC_neg,'Effect','cohen');
+    text(-0.5,0.32,'Hearing shift: -1mm','fontsize',15)
+    text(-0.5,0.29,['CohensD: ' sprintf('%.2f', cd.Effect)],'fontsize',15)
+    plot([mean(distances_HtoC_neg) mean(distances_HtoC_neg)],[0 0.34],'--','color',[204, 171, 25]./255,'linewidth',2)
+end
+
+if face
+    exportgraphics(gcf, 'figure_mFus_shift.pdf', 'ContentType', 'vector');
+elseif hand
+    exportgraphics(gcf, 'figure_OTS_shift.pdf', 'ContentType', 'vector');
+end
+
+%% Visualize angle distribution
+% [vec1_rot, vec2_rot, angle] 
+% ================================
+%  POLAR DENSITY HISTOGRAM (FILLED)
+% angle must be in degrees
+%  ===============================
+
+angles = movement_angles_D_MFS(:);
+angles = angles(~isnan(angles));
+
+% Convert to radians (required for polarhistogram)
+angles_rad = deg2rad(angles);
+
+f3=figure('Color','w');
+
+h = polarhistogram(angles_rad, ...
+    'BinLimits',[0 pi], ...      % radians!
+    'NumBins',24, ...
+    'Normalization','probability');
+
+h.FaceColor = [0.8 0.2 0.4];
+h.EdgeColor = [0 0 0];
+h.LineWidth = 1.2;
+h.FaceAlpha = 0.7;
+
+pax=gca;
+pax.ThetaZeroLocation = 'top';
+pax.ThetaDir = 'clockwise';
+if hand
+    pax.ThetaDir = 'counterclockwise';
+end
+pax.ThetaLim = [0 180];      % degrees (this is fine)
+pax.FontSize = 22;
+pax.LineWidth = 1.2;
+pax.GridAlpha = 0.4;
+
+% Now controls
+hold on; 
+angles = movement_angles_C_MFS(:);
+angles = angles(~isnan(angles));
+angles_rad = deg2rad(angles);
+h = polarhistogram(angles_rad, ...
+    'BinLimits',[0 pi], ...      % radians!
+    'NumBins',24, ...
+    'Normalization','probability');
+
+% Styling
+h.FaceColor = [0.2 0.2 0.8];
+h.EdgeColor = [0 0 0];
+h.LineWidth = 1.2;
+h.FaceAlpha = 0.6;
+
+
+% Now hearing
+hold on; 
+angles = movement_angles_H_MFS(:);
+angles = angles(~isnan(angles));
+angles_rad = deg2rad(angles);
+h = polarhistogram(angles_rad, ...
+    'BinLimits',[0 pi], ...      % radians!
+    'NumBins',24, ...
+    'Normalization','probability');
+
+% Styling
+h.FaceColor = [224, 191, 45]./255;
+h.EdgeColor = [0 0 0];
+h.LineWidth = 1.2;
+h.FaceAlpha = 0.7;
+
+if face 
+    title('mFus-faces (0–180°)', ...
+      'FontSize',24, ...
+      'FontWeight','bold');
+    pax.RLabel.String = 'Density';
+elseif hand
+    title('OTS-hands (0–180°)', ...
+      'FontSize',24, ...
+      'FontWeight','bold');
+end
+
+if face
+    exportgraphics(gcf, 'figure_mFus_angles.pdf', 'ContentType', 'vector');
+elseif hand
+    exportgraphics(gcf, 'figure_OTS_angles.pdf', 'ContentType', 'vector');
+end
